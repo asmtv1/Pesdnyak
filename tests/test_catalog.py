@@ -7,13 +7,13 @@ from dog_excuses.verdicts import verdict_for
 def test_catalog_shape_and_counts() -> None:
     validate_catalog()
     assert len(SITUATIONS) == 8
-    assert fragment_count() == 344
-    assert combination_count() == 8_928
+    assert fragment_count() == 408
+    assert combination_count() == 11_232
     for situation in SITUATIONS:
         assert len(situation.openers) == 6
         assert len(situation.finales) == 6
         for level in LevelId:
-            expected_reasons = 7 if level is LevelId.REAL else 12
+            expected_reasons = 7 if level is LevelId.REAL else 16
             assert len(situation.levels[level].reasons) == expected_reasons
 
 
@@ -49,7 +49,7 @@ def test_fragments_do_not_contain_known_bad_glue() -> None:
                 assert ". " not in reason.text
 
 
-def test_all_8928_text_combinations_are_unique_and_well_formed() -> None:
+def test_all_11232_text_combinations_are_unique_and_well_formed() -> None:
     all_texts: set[str] = set()
     for situation in SITUATIONS:
         situation_texts: set[str] = set()
@@ -61,6 +61,16 @@ def test_all_8928_text_combinations_are_unique_and_well_formed() -> None:
                         assert len(text.split(". ")) == 3
                         assert any(marker in text.lower() for marker in DOG_MARKERS)
                         situation_texts.add(text)
-        assert len(situation_texts) == 1_116
+        assert len(situation_texts) == 1_404
         all_texts.update(situation_texts)
-    assert len(all_texts) == 8_928
+    assert len(all_texts) == 11_232
+
+
+def test_broken_promise_trade_explains_human_consequence() -> None:
+    situation = next(item for item in SITUATIONS if item.id == "broken-promise")
+    absurd_reasons = {reason.text for reason in situation.levels[LevelId.ABSURD].reasons}
+    assert (
+        "Собака обменяла обязательство на два лакомства, а вернуть согласилась уже за четыре."
+        not in absurd_reasons
+    )
+    assert any("поэтому пришлось искать доплату" in reason for reason in absurd_reasons)
