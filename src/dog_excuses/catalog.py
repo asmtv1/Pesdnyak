@@ -351,7 +351,7 @@ REASONS: dict[str, dict[LevelId, tuple[tuple[str, int], ...]]] = {
                 14,
             ),
             (
-                "Пёс соблюдал первое правило рабочего клуба и никому не рассказал, куда исчез проект.",
+                "Пёс спрятал проект по первому правилу рабочего клуба и отказался показывать тайник.",
                 8,
             ),
             (
@@ -448,7 +448,7 @@ REASONS: dict[str, dict[LevelId, tuple[tuple[str, int], ...]]] = {
                 12,
             ),
             (
-                "Пёс перехватил приглашение на созвон и решил присутствовать вместо хозяина телепатически.",
+                "Пёс перехватил приглашение на созвон и решил присутствовать вместо меня телепатически.",
                 9,
             ),
             ("Собака объявила кровать заповедной зоной и закрыла выход до полудня.", 14),
@@ -634,7 +634,7 @@ REASONS: dict[str, dict[LevelId, tuple[tuple[str, int], ...]]] = {
                 10,
             ),
             (
-                "Собака строго соблюдала первое правило чата: никому не говорить о существовании чата.",
+                "Собака спрятала телефон по первому правилу чата, чтобы никто не узнал о переписке.",
                 14,
             ),
             (
@@ -829,7 +829,7 @@ REASONS: dict[str, dict[LevelId, tuple[tuple[str, int], ...]]] = {
             ("Пёс перенёс встречу на ближайший собачий четверг, которого нет в календаре.", 11),
             ("Собака потребовала письменное разрешение на выход от дворового кинолога.", 12),
             ("Пёс вызвал дождь одним взглядом и запретил проверять прогноз.", 9),
-            ("Собака назначила хозяина дежурным по лежанке именно на время встречи.", 14),
+            ("Собака назначила меня дежурным по лежанке именно на время встречи.", 14),
             (
                 "Пёс отменил встречу в календаре, потому что у неё не было ни поводка, ни ответственного владельца.",
                 13,
@@ -855,7 +855,7 @@ REASONS: dict[str, dict[LevelId, tuple[tuple[str, int], ...]]] = {
                 11,
             ),
             (
-                "Пёс выбрал не ту таблетку из Матрицы, поэтому встреча осталась в симуляции без хозяина.",
+                "Пёс выбрал не ту таблетку из Матрицы, поэтому встреча осталась в симуляции без меня.",
                 9,
             ),
             (
@@ -1000,7 +1000,7 @@ REASONS: dict[str, dict[LevelId, tuple[tuple[str, int], ...]]] = {
                 14,
             ),
             (
-                "Собака соблюдала первое правило клуба обещаний и никому не рассказала, что именно надо сделать.",
+                "Собака спрятала список дел по первому правилу клуба обещаний и отказалась показывать нужный пункт.",
                 8,
             ),
             (
@@ -1039,11 +1039,11 @@ REASONS: dict[str, dict[LevelId, tuple[tuple[str, int], ...]]] = {
         ),
         LevelId.CREATIVE: (
             (
-                "Собака включила домашнюю камеру и смотрела в неё с таким укором, что пришлось уйти раньше.",
+                "Собака включила домашнюю камеру и смотрела в неё так, будто дома началась чрезвычайная ситуация.",
                 46,
             ),
             (
-                "Пёс заказал доставку корма на рабочее время и назначил хозяина ответственным за приёмку.",
+                "Пёс заказал доставку корма на рабочее время и назначил меня ответственным за приёмку.",
                 43,
             ),
             (
@@ -1079,7 +1079,7 @@ REASONS: dict[str, dict[LevelId, tuple[tuple[str, int], ...]]] = {
             ),
         ),
         LevelId.ABSURD: (
-            ("Собака вызвала хозяина домой официальной повесткой с отпечатком лапы.", 14),
+            ("Собака вызвала меня домой официальной повесткой с отпечатком лапы.", 14),
             (
                 "Пёс объявил конец рабочего дня на час раньше и разослал приказ всем поводкам района.",
                 12,
@@ -1092,7 +1092,7 @@ REASONS: dict[str, dict[LevelId, tuple[tuple[str, int], ...]]] = {
             ),
             ("Пёс перевёл домашние часы вперёд и убедил кормушку, что ужин уже опаздывает.", 9),
             (
-                "Собака пригрозила уйти на прогулку без человека, поэтому пришлось опередить события.",
+                "Собака пригрозила уйти на прогулку без меня, поэтому пришлось опередить события.",
                 8,
             ),
             (
@@ -1100,7 +1100,7 @@ REASONS: dict[str, dict[LevelId, tuple[tuple[str, int], ...]]] = {
                 13,
             ),
             (
-                "Собака объявила эвакуацию офиса домой, но эвакуировать почему-то пришлось только хозяина.",
+                "Собака объявила эвакуацию офиса домой, но эвакуировать почему-то пришлось только меня.",
                 12,
             ),
             (
@@ -1218,6 +1218,28 @@ OPENERS: dict[str, tuple[str, ...]] = {
     ),
 }
 
+CAUSAL_BRIDGES: dict[str, str] = {
+    "late-work": "Из-за этого я добрался до работы уже после начала рабочего дня.",
+    "deadline": (
+        "Разбираться с собачьим вмешательством пришлось мне, и на саму задачу "
+        "времени уже не осталось."
+    ),
+    "overslept-call": ("Из-за этого я не услышал будильник и проснулся намного позже обычного."),
+    "ghosted": "Пока я восстанавливал нормальную связь, сообщения копились без ответа.",
+    "birthday": "Из-за этого я добрался до напоминания и поздравления только сейчас.",
+    "cancel-meeting": (
+        "Разобраться с этим на расстоянии не получилось, поэтому вместо поездки "
+        "я остался решать проблему на месте."
+    ),
+    "broken-promise": (
+        "Разобраться с последствиями пришлось мне, и только потом можно было "
+        "вернуться к обещанному."
+    ),
+    "left-early": (
+        "Помочь собаке с рабочего места я не мог, поэтому поехал домой разбираться лично."
+    ),
+}
+
 FINALES: dict[str, tuple[tuple[str, int], ...]] = {
     "late-work": (
         ("Я уже еду и наверстаю пропущенное в течение дня.", 8),
@@ -1293,6 +1315,7 @@ def _pool(situation_id: str, level: LevelId) -> LevelPool:
 
 def _build_situation(blueprint: Blueprint) -> Situation:
     openers = OPENERS[blueprint.id]
+    causal_bridge = CAUSAL_BRIDGES[blueprint.id]
     finales = tuple(WeightedText(text, weight) for text, weight in FINALES[blueprint.id])
     return Situation(
         id=blueprint.id,
@@ -1300,6 +1323,7 @@ def _build_situation(blueprint: Blueprint) -> Situation:
         emoji=blueprint.emoji,
         low_verdict=blueprint.low_verdict,
         openers=openers,
+        causal_bridge=causal_bridge,
         finales=finales,
         levels={
             LevelId.REAL: _pool(blueprint.id, LevelId.REAL),
@@ -1323,6 +1347,7 @@ def validate_catalog() -> None:
         if len(situation.finales) != 6 or len({x.text for x in situation.finales}) != 6:
             raise ValueError(f"{situation.id}: expected six unique finales")
         all_fragments.extend(situation.openers)
+        all_fragments.append(situation.causal_bridge)
         all_fragments.extend(item.text for item in situation.finales)
         for level in LevelId:
             pool = situation.levels[level]
@@ -1344,8 +1369,8 @@ def validate_catalog() -> None:
             ):
                 raise ValueError(f"{situation.id}/{level}: every reason must mention a dog")
             all_fragments.extend(item.text for item in pool.reasons)
-    if len(all_fragments) != 408 or len(set(all_fragments)) != 408:
-        raise ValueError("Catalog must contain 408 globally unique fragments")
+    if len(all_fragments) != 416 or len(set(all_fragments)) != 416:
+        raise ValueError("Catalog must contain 416 globally unique fragments")
 
 
 validate_catalog()

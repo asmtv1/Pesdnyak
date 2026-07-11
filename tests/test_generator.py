@@ -27,12 +27,21 @@ class MemoryStore:
 
 
 @pytest.mark.asyncio
-async def test_generated_excuse_has_three_sentences_and_valid_score() -> None:
+async def test_generated_real_excuse_has_three_sentences_and_valid_score() -> None:
     store = MemoryStore()
     result = await generate_excuse("late-work", LevelId.REAL, store, random.Random(42))
     assert len(result.text.split(". ")) == 3
     assert any(marker in result.text.lower() for marker in DOG_MARKERS)
     assert 3 <= result.score <= 92
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("level", [LevelId.CREATIVE, LevelId.ABSURD])
+async def test_imaginative_excuse_has_explicit_human_consequence(level: LevelId) -> None:
+    result = await generate_excuse("deadline", level, MemoryStore(), random.Random(42))
+    assert len(result.text.split(". ")) == 4
+    assert "пришлось мне" in result.text
+    assert "на саму задачу времени уже не осталось" in result.text
 
 
 @pytest.mark.asyncio

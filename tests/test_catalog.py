@@ -1,13 +1,13 @@
 from dog_excuses.catalog import DOG_MARKERS, LEVELS, SITUATIONS, validate_catalog
 from dog_excuses.domain import LevelId
-from dog_excuses.generator import combination_count, fragment_count
+from dog_excuses.generator import combination_count, compose_text, fragment_count
 from dog_excuses.verdicts import verdict_for
 
 
 def test_catalog_shape_and_counts() -> None:
     validate_catalog()
     assert len(SITUATIONS) == 8
-    assert fragment_count() == 408
+    assert fragment_count() == 416
     assert combination_count() == 11_232
     for situation in SITUATIONS:
         assert len(situation.openers) == 6
@@ -57,13 +57,22 @@ def test_all_11232_text_combinations_are_unique_and_well_formed() -> None:
     all_texts: set[str] = set()
     for situation in SITUATIONS:
         situation_texts: set[str] = set()
-        for pool in situation.levels.values():
+        for level, pool in situation.levels.items():
             for opener in situation.openers:
                 for reason in pool.reasons:
                     for finale in situation.finales:
-                        text = " ".join((opener, reason.text, finale.text))
-                        assert len(text.split(". ")) == 3
+                        text = compose_text(
+                            opener,
+                            reason.text,
+                            situation.causal_bridge,
+                            finale.text,
+                            level,
+                        )
+                        expected_sentences = 3 if level is LevelId.REAL else 4
+                        assert len(text.split(". ")) == expected_sentences
                         assert any(marker in text.lower() for marker in DOG_MARKERS)
+                        if level in (LevelId.CREATIVE, LevelId.ABSURD):
+                            assert situation.causal_bridge in text
                         situation_texts.add(text)
         assert len(situation_texts) == 1_404
         all_texts.update(situation_texts)

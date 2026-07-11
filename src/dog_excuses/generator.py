@@ -14,6 +14,20 @@ SCORE_JITTER: dict[LevelId, int] = {
 }
 
 
+def compose_text(
+    opener: str,
+    reason: str,
+    causal_bridge: str,
+    finale: str,
+    level_id: LevelId,
+) -> str:
+    parts = [opener, reason]
+    if level_id in (LevelId.CREATIVE, LevelId.ABSURD):
+        parts.append(causal_bridge)
+    parts.append(finale)
+    return " ".join(parts)
+
+
 @dataclass(slots=True)
 class Bag:
     remaining: list[int]
@@ -82,7 +96,13 @@ async def generate_excuse(
     jitter = SCORE_JITTER[level_id]
     raw_score = reason.weight + finale.weight + random_source.randint(-jitter, jitter)
     score = max(3, min(raw_score, level.cap))
-    text = " ".join((situation.openers[opener_idx], reason.text, finale.text))
+    text = compose_text(
+        situation.openers[opener_idx],
+        reason.text,
+        situation.causal_bridge,
+        finale.text,
+        level_id,
+    )
     await store.save_last_indices(indices)
     return GeneratedExcuse(
         situation_id=situation_id,
@@ -111,6 +131,7 @@ def combination_count() -> int:
 def fragment_count() -> int:
     return sum(
         len(situation.openers)
+        + 1
         + len(situation.finales)
         + sum(len(pool.reasons) for pool in situation.levels.values())
         for situation in SITUATIONS_BY_ID.values()

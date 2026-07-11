@@ -2,6 +2,7 @@ from html import escape
 
 from dog_excuses.catalog import LEVELS, SITUATIONS_BY_ID
 from dog_excuses.domain import GeneratedExcuse, LevelId
+from dog_excuses.generator import compose_text
 from dog_excuses.verdicts import verdict_for, verdict_seed
 
 
@@ -34,10 +35,12 @@ def decode_share(query: str) -> GeneratedExcuse | None:
         opener_idx, reason_idx, finale_idx = indices
         situation = SITUATIONS_BY_ID[situation_id]
         pool = situation.levels[level_id]
-        parts = (
+        text = compose_text(
             situation.openers[opener_idx],
             pool.reasons[reason_idx].text,
+            situation.causal_bridge,
             situation.finales[finale_idx].text,
+            level_id,
         )
         score = int(score_raw)
         if not 3 <= score <= LEVELS[level_id].cap:
@@ -47,7 +50,7 @@ def decode_share(query: str) -> GeneratedExcuse | None:
     return GeneratedExcuse(
         situation_id=situation_id,
         level_id=level_id,
-        text=" ".join(parts),
+        text=text,
         score=score,
         verdict=verdict_for(
             score,
