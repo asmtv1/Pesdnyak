@@ -1,0 +1,164 @@
+name: CI/CD
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: pesdnyak-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -e '.[dev]'
+
+      - name: Ruff format
+        run: ruff format --check .
+
+      - name: Ruff lint
+        run: ruff check .
+
+      - name: Mypy
+        run: mypy .
+
+      - name: Tests
+        run: pytest -q
+
+      - name: Migration smoke test
+        env:
+          BOT_TOKEN: 123456789:test-token
+          USER_HASH_SECRET: ci-only-secret
+          DATABASE_URL: sqlite+aiosqlite:////tmp/pesdnyak-ci.db
+        run: |
+          alembic upgrade head
+          alembic check
+
+  image:
+    needs: test
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.image-name.outputs.image }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Compute image name
+        id: image-name
+        shell: bash
+        run: echo "image=ghcr.io/${GITHUB_REPOSITORY,,}" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and publish immutable image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: |
+            ${{ steps.image-name.outputs.image }}:${{ github.sha }}
+            ${{ steps.image-name.outputs.image }}:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          provenance: true
+          sbom: true
+
+  deploy:
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    needs: image
+    runs-on: ubuntu-latest
+    environment: production
+    env:
+      DEPLOY_HOST: 89.125.250.84
+      DEPLOY_USER: root
+      APP_ROOT: /opt/pesdnyak
+      IMAGE: ${{ needs.image.outputs.image }}
+      IMAGE_TAG: ${{ github.sha }}
+      BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
+      USER_HASH_SECRET: ${{ secrets.USER_HASH_SECRET }}
+      SSH_PRIVATE_KEY: ${{ secrets.DEPLOY_SSH_PRIVATE_KEY }}
+      SSH_KNOWN_HOSTS: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+      GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      GHCR_USERNAME: ${{ github.actor }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Validate deployment secrets
+        shell: bash
+        run: |
+          test -n "$BOT_TOKEN"
+          test -n "$USER_HASH_SECRET"
+          test -n "$SSH_PRIVATE_KEY"
+          test -n "$SSH_KNOWN_HOSTS"
+
+      - name: Configure SSH
+        shell: bash
+        run: |
+          install -d -m 0700 ~/.ssh
+          printf '%s\n' "$SSH_PRIVATE_KEY" > ~/.ssh/id_ed25519
+          chmod 0600 ~/.ssh/id_ed25519
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          chmod 0600 ~/.ssh/known_hosts
+
+      - name: Prepare isolated release directories
+        shell: bash
+        run: |
+          ssh "$DEPLOY_USER@$DEPLOY_HOST" "install -d -m 0755 '$APP_ROOT/releases/$GITHUB_SHA' '$APP_ROOT/shared' && install -d -m 0750 -o 10001 -g 10001 '$APP_ROOT/data' && install -d -m 0700 '$APP_ROOT/shared/docker-config'"
+
+      - name: Upload release manifests
+        shell: bash
+        run: |
+          scp compose.prod.yaml deploy/remote-deploy.sh "$DEPLOY_USER@$DEPLOY_HOST:$APP_ROOT/releases/$GITHUB_SHA/"
+
+      - name: Generate runtime environment from GitHub secrets
+        shell: bash
+        run: |
+          printf 'BOT_TOKEN=%s\nUSER_HASH_SECRET=%s\nDATABASE_URL=%s\nLOG_LEVEL=%s\n' \
+            "$BOT_TOKEN" \
+            "$USER_HASH_SECRET" \
+            'sqlite+aiosqlite:////app/data/bot.db' \
+            'INFO' \
+          | ssh "$DEPLOY_USER@$DEPLOY_HOST" "umask 077; cat > '$APP_ROOT/shared/runtime.env.tmp'; mv '$APP_ROOT/shared/runtime.env.tmp' '$APP_ROOT/shared/runtime.env'"
+
+      - name: Generate release environment
+        shell: bash
+        run: |
+          printf 'BOT_IMAGE=%s\nBOT_IMAGE_TAG=%s\nBOT_ENV_FILE=%s\nBOT_DATA_DIR=%s\n' \
+            "$IMAGE" \
+            "$IMAGE_TAG" \
+            "$APP_ROOT/shared/runtime.env" \
+            "$APP_ROOT/data" \
+          | ssh "$DEPLOY_USER@$DEPLOY_HOST" "umask 077; cat > '$APP_ROOT/releases/$GITHUB_SHA/deploy.env'"
+
+      - name: Log isolated Docker client in to GHCR
+        shell: bash
+        run: |
+          printf '%s' "$GHCR_TOKEN" \
+          | ssh "$DEPLOY_USER@$DEPLOY_HOST" "DOCKER_CONFIG='$APP_ROOT/shared/docker-config' docker login ghcr.io --username '$GHCR_USERNAME' --password-stdin"
+
+      - name: Deploy and verify with rollback
+        shell: bash
+        run: |
+          ssh "$DEPLOY_USER@$DEPLOY_HOST" "chmod 0700 '$APP_ROOT/releases/$GITHUB_SHA/remote-deploy.sh' && APP_ROOT='$APP_ROOT' PROJECT_NAME='pesdnyak' RELEASE_SHA='$GITHUB_SHA' '$APP_ROOT/releases/$GITHUB_SHA/remote-deploy.sh'"
