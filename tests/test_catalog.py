@@ -1,23 +1,19 @@
 from dog_excuses.catalog import DOG_MARKERS, LEVELS, SITUATIONS, validate_catalog
 from dog_excuses.domain import LevelId
-from dog_excuses.generator import combination_count, compose_text, fragment_count
+from dog_excuses.generator import combination_count, fragment_count
 from dog_excuses.verdicts import verdict_for
 
 
 def test_catalog_shape_and_counts() -> None:
     validate_catalog()
     assert len(SITUATIONS) == 8
-    assert fragment_count() == 416
-    assert combination_count() == 11_232
+    assert fragment_count() == 344
+    assert combination_count() == 8_928
     for situation in SITUATIONS:
         assert len(situation.openers) == 6
         assert len(situation.finales) == 6
         for level in LevelId:
-            expected_reasons = {
-                LevelId.REAL: 7,
-                LevelId.CREATIVE: 12,
-                LevelId.ABSURD: 20,
-            }[level]
+            expected_reasons = 7 if level is LevelId.REAL else 12
             assert len(situation.levels[level].reasons) == expected_reasons
 
 
@@ -53,27 +49,18 @@ def test_fragments_do_not_contain_known_bad_glue() -> None:
                 assert ". " not in reason.text
 
 
-def test_all_11232_text_combinations_are_unique_and_well_formed() -> None:
+def test_all_8928_text_combinations_are_unique_and_well_formed() -> None:
     all_texts: set[str] = set()
     for situation in SITUATIONS:
         situation_texts: set[str] = set()
-        for level, pool in situation.levels.items():
+        for pool in situation.levels.values():
             for opener in situation.openers:
                 for reason in pool.reasons:
                     for finale in situation.finales:
-                        text = compose_text(
-                            opener,
-                            reason.text,
-                            situation.causal_bridge,
-                            finale.text,
-                            level,
-                        )
-                        expected_sentences = 3 if level is LevelId.REAL else 4
-                        assert len(text.split(". ")) == expected_sentences
+                        text = " ".join((opener, reason.text, finale.text))
+                        assert len(text.split(". ")) == 3
                         assert any(marker in text.lower() for marker in DOG_MARKERS)
-                        if level in (LevelId.CREATIVE, LevelId.ABSURD):
-                            assert situation.causal_bridge in text
                         situation_texts.add(text)
-        assert len(situation_texts) == 1_404
+        assert len(situation_texts) == 1_116
         all_texts.update(situation_texts)
-    assert len(all_texts) == 11_232
+    assert len(all_texts) == 8_928

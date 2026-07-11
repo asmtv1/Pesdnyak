@@ -34,7 +34,6 @@ class Situation:
     emoji: str
     low_verdict: str
     openers: tuple[str, ...]
-    causal_bridge: str
     finales: tuple[WeightedText, ...]
     levels: dict[LevelId, LevelPool]
 
