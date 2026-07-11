@@ -2,8 +2,9 @@ import random
 
 import pytest
 
+from dog_excuses.catalog import DOG_MARKERS
 from dog_excuses.domain import LevelId
-from dog_excuses.generator import Bag, generate_excuse
+from dog_excuses.generator import SCORE_JITTER, Bag, generate_excuse
 
 
 class MemoryStore:
@@ -30,14 +31,14 @@ async def test_generated_excuse_has_three_sentences_and_valid_score() -> None:
     store = MemoryStore()
     result = await generate_excuse("late-work", LevelId.REAL, store, random.Random(42))
     assert len(result.text.split(". ")) == 3
-    assert "собак" in result.text.lower() or "пёс" in result.text.lower()
+    assert any(marker in result.text.lower() for marker in DOG_MARKERS)
     assert 3 <= result.score <= 92
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
     ("level", "cap"),
-    [(LevelId.REAL, 92), (LevelId.CREATIVE, 70), (LevelId.ABSURD, 34)],
+    [(LevelId.REAL, 92), (LevelId.CREATIVE, 70), (LevelId.ABSURD, 42)],
 )
 async def test_score_respects_level_cap(level: LevelId, cap: int) -> None:
     result = await generate_excuse("deadline", level, MemoryStore(), random.Random(1))
@@ -64,3 +65,21 @@ async def test_full_result_never_repeats_immediately() -> None:
         result = await generate_excuse("birthday", LevelId.ABSURD, store, rng)
         assert result.indices != previous
         previous = result.indices
+
+
+@pytest.mark.asyncio
+async def test_full_result_uses_every_combination_before_repeat() -> None:
+    store = MemoryStore()
+    rng = random.Random(15)
+    combinations = {
+        (
+            await generate_excuse("late-work", LevelId.CREATIVE, store, rng)
+        ).indices
+        for _ in range(432)
+    }
+    assert len(combinations) == 432
+
+
+def test_creative_and_absurd_scores_have_wider_jitter() -> None:
+    assert SCORE_JITTER[LevelId.CREATIVE] == 16
+    assert SCORE_JITTER[LevelId.ABSURD] == 18

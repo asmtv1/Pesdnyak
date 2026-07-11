@@ -7,6 +7,12 @@ from dog_excuses.catalog import LEVELS, SITUATIONS_BY_ID
 from dog_excuses.domain import GeneratedExcuse, LevelId
 from dog_excuses.verdicts import verdict_for, verdict_seed
 
+SCORE_JITTER: dict[LevelId, int] = {
+    LevelId.REAL: 3,
+    LevelId.CREATIVE: 16,
+    LevelId.ABSURD: 18,
+}
+
 
 @dataclass(slots=True)
 class Bag:
@@ -54,22 +60,26 @@ async def generate_excuse(
     pool = situation.levels[level_id]
     prefix = f"{situation_id}:{level_id}"
 
-    for _ in range(2):
-        opener_idx = await _draw(store, f"{prefix}:opener", len(situation.openers), random_source)
-        reason_idx = await _draw(store, f"{prefix}:reason", len(pool.reasons), random_source)
-        finale_idx = await _draw(store, f"{prefix}:finale", len(situation.finales), random_source)
-        indices = (opener_idx, reason_idx, finale_idx)
-        if indices != await store.load_last_indices():
-            break
+    reason_idx = await _draw(
+        store,
+        f"{prefix}:reason-v3",
+        len(pool.reasons),
+        random_source,
+    )
+    pair_count = len(situation.openers) * len(situation.finales)
+    pair_idx = await _draw(
+        store,
+        f"{prefix}:pair-v3:{reason_idx}",
+        pair_count,
+        random_source,
+    )
+    opener_idx, finale_idx = divmod(pair_idx, len(situation.finales))
+    indices = (opener_idx, reason_idx, finale_idx)
 
     reason = pool.reasons[reason_idx]
     finale = situation.finales[finale_idx]
     level = LEVELS[level_id]
-    jitter = {
-        LevelId.REAL: 3,
-        LevelId.CREATIVE: 8,
-        LevelId.ABSURD: 10,
-    }[level_id]
+    jitter = SCORE_JITTER[level_id]
     raw_score = reason.weight + finale.weight + random_source.randint(-jitter, jitter)
     score = max(3, min(raw_score, level.cap))
     text = " ".join((situation.openers[opener_idx], reason.text, finale.text))
