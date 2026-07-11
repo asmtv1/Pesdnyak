@@ -72,9 +72,7 @@ async def test_full_result_uses_every_combination_before_repeat() -> None:
     store = MemoryStore()
     rng = random.Random(15)
     combinations = {
-        (
-            await generate_excuse("late-work", LevelId.CREATIVE, store, rng)
-        ).indices
+        (await generate_excuse("late-work", LevelId.CREATIVE, store, rng)).indices
         for _ in range(432)
     }
     assert len(combinations) == 432
